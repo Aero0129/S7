@@ -244,6 +244,30 @@ button { cursor: pointer; }
   font-size: 22px;
 }
 
+
+/* Search icon: subtle left-right scanning animation */
+.search-btn .search-icon {
+  display: inline-block;
+  margin-right: 8px;
+  font-size: 22px;
+  transform-origin: center;
+  animation: searchIconScan 2s ease-in-out infinite;
+}
+
+@keyframes searchIconScan {
+  0%   { transform: translateX(0) rotate(0deg); }
+  20%  { transform: translateX(-1px) rotate(-4deg); }
+  50%  { transform: translateX(1px) rotate(4deg); }
+  80%  { transform: translateX(-1px) rotate(-2deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-btn .search-icon {
+    animation: none;
+  }
+}
+
 .search-hint {
   margin: 13px 0 0;
   color: #6e7e94;
