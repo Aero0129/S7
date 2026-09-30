@@ -282,7 +282,7 @@
       const rows = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
       if (!Array.isArray(rows) || !rows.length) return false;
 
-      database = rows;
+      database = rows.filter(isEnabled).filter(isSearchableRow);
       products = uniqueProducts(database);
       return true;
     } catch (_) {
@@ -415,7 +415,11 @@
             obj[h] = cell ? (cell.v ?? cell.f ?? "") : "";
           });
           return obj;
-        }).filter(r => clean(r.Old_Part_No) || clean(r.New_Part_No));
+        }).filter((r) =>
+          clean(r.Old_Part_No) ||
+          clean(r.New_Part_No) ||
+          clean(r.Old_Description)
+        );
 
         resolve(rows);
       };
@@ -437,6 +441,10 @@
   function isEnabled(row) {
     const v = clean(row.Search_Enabled).toLowerCase();
     return !(v === "0" || v === "false" || v === "no");
+  }
+
+  function isSearchableRow(row) {
+    return Boolean(clean(row.Old_Part_No) || clean(row.New_Part_No));
   }
 
   async function loadDatabase({ manual = false } = {}) {
@@ -464,14 +472,18 @@
 
     try {
       // 有網路時，每次開啟／重新同步都優先讀取最新 Google Sheet。
-      database = (await loadSheet()).filter(isEnabled);
+      // allRows 保留「只有 Old_Description、料號尚未建立」的即將推出資料，供更新公告比對。
+      // database 則只保留已有舊／新料號的資料，避免預告資料進入一般搜尋結果。
+      const allRows = (await loadSheet()).filter(isEnabled);
+      database = allRows.filter(isSearchableRow);
       products = uniqueProducts(database);
 
       // 和上一次成功快取的 Migration_DB 筆數比較。若增加，只從新增資料區段找最新非空 Old_Description。
-      detectProductUpdate(previousRows, database);
+      detectProductUpdate(previousRows, allRows);
 
       const now = new Date();
-      localStorage.setItem(CACHE_KEY, JSON.stringify(database));
+      // 快取 allRows，下一次才能把尚未有料號的預告資料也納入筆數基準。
+      localStorage.setItem(CACHE_KEY, JSON.stringify(allRows));
       localStorage.setItem(CACHE_TIME_KEY, now.toISOString());
 
       setStatus("ok", `資料已更新：${fmtTime(now)}`);
