@@ -1,4 +1,4 @@
-const CACHE_NAME = "s7-1200-g2-finder-shell-v50";
+const CACHE_NAME = "s7-1200-g2-finder-shell-v51";
 const CACHE_PREFIX = "s7-1200-g2-finder-shell-";
 
 // v50：2026-09-30 更新。新產品公告鈴鐺動畫；新版 Service Worker 啟用後會清除舊快取。
