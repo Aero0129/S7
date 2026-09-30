@@ -1475,3 +1475,9 @@ button { cursor: pointer; }
     font-weight: 700;
   }
 }
+
+
+/* v4: Hide the result-count placeholder before the first search (desktop + mobile). */
+#resultCount:empty {
+  display: none;
+}

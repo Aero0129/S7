@@ -5,13 +5,11 @@
   const SHEET_NAME = "Migration_DB";
   const CACHE_KEY = "s71200g2_migration_db_v2";
   const CACHE_TIME_KEY = "s71200g2_migration_db_time_v2";
-  
+
   // Visitor statistics API.
   // Paste your deployed Google Apps Script Web App /exec URL between the quotes.
   // Leave empty to completely disable statistics without affecting search.
-  const VISITOR_API_URL = "https://script.google.com/macros/s/AKfycbyl0-vuo1b9N1gtK4L22vmwJhE5CWRjDjwEL9W_HdJpWgFQRYou2MKqpiGT9DlbMLclbA/exec";
-
-  
+  const VISITOR_API_URL = "";
 
   let database = [];
   let products = [];
@@ -243,7 +241,6 @@
     el.messageBox.innerHTML = `
       <span class="empty-search-icon">⌕</span>
       <div>
-        <strong>尚未搜尋</strong>
         <p>${isIo
           ? "輸入 I/O 數量後按「搜尋」，即可查看符合條件的產品。"
           : "輸入 MLFB / 料號後按「搜尋」，即可查看對應產品。"}</p>
@@ -548,7 +545,7 @@
     }
 
     el.results.innerHTML = "";
-    el.resultCount.textContent = "尚未搜尋";
+    el.resultCount.textContent = "";
     showEmptyState(mode);
   }
 
@@ -634,7 +631,6 @@
       // Apps Script / Google Sheet is slow or unavailable.
       fetch(VISITOR_API_URL, {
         method: "POST",
-        mode: "no-cors",
         headers: {
           "Content-Type": "text/plain;charset=utf-8"
         },
