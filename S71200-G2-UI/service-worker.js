@@ -1,7 +1,7 @@
-const CACHE_NAME = "s7-1200-g2-finder-shell-v48";
+const CACHE_NAME = "s7-1200-g2-finder-shell-v50";
 const CACHE_PREFIX = "s7-1200-g2-finder-shell-";
 
-// v47：2026-09-30 更新。產品公告邏輯修正；新版 Service Worker 啟用後會清除舊快取。
+// v50：2026-09-30 更新。新產品公告鈴鐺動畫；新版 Service Worker 啟用後會清除舊快取。
 
 const ROOT_URL = new URL("./", self.location.href).href;
 const INDEX_URL = new URL("./index.html", self.location.href).href;

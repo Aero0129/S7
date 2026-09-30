@@ -182,6 +182,26 @@ button { cursor: pointer; }
   stroke-linejoin: round;
 }
 
+/* New product announcement: ring the bell gently.
+   Only the bell icon moves; the button and red dot stay still. */
+.product-update-bell.has-new svg {
+  transform-origin: 50% 12%;
+  animation: productBellRing 2.6s ease-in-out infinite;
+}
+
+@keyframes productBellRing {
+  0%, 12%, 100% { transform: rotate(0deg); }
+  3%  { transform: rotate(-10deg); }
+  6%  { transform: rotate(9deg); }
+  9%  { transform: rotate(-6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-update-bell.has-new svg {
+    animation: none;
+  }
+}
+
 .product-update-dot {
   position: absolute;
   top: 5px;
@@ -1583,11 +1603,19 @@ button { cursor: pointer; }
 }
 
 
-/* Product update bell: mobile */
+/* Product update bell: mobile
+   Place the bell at the upper-right corner of the page title. */
 @media (max-width: 760px) {
   .hero {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
+    display: block;
+    position: relative;
+    padding-right: 52px;
+  }
+
+  .product-update-notice {
+    position: absolute;
+    top: 0;
+    right: 0;
   }
 
   .product-update-bell {

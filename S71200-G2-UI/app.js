@@ -204,11 +204,13 @@
     if (!notice || !clean(notice.text)) {
       el.productUpdateText.textContent = "目前沒有新產品公告。";
       el.productUpdateDot.hidden = true;
+      el.productUpdateBell.classList.remove("has-new");
       return;
     }
 
     el.productUpdateText.textContent = notice.text;
     el.productUpdateDot.hidden = !notice.unread;
+    el.productUpdateBell.classList.toggle("has-new", Boolean(notice.unread));
   }
 
   function detectProductUpdate(previousRows, currentRows) {
