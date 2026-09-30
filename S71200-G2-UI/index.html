@@ -15,6 +15,21 @@
         <h1>非官方S7-1200 G2 產品查詢工具</h1>
         <p>輸入IO規格查詢G2模組,或使用舊MLFB/料號找到新舊對照。</p>
       </div>
+
+      <div class="product-update-notice" id="productUpdateNotice">
+        <button class="product-update-bell" id="productUpdateBell" type="button"
+                aria-label="產品更新通知" aria-expanded="false" aria-controls="productUpdatePopover">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>
+          </svg>
+          <span class="product-update-dot" id="productUpdateDot" hidden></span>
+        </button>
+
+        <div class="product-update-popover" id="productUpdatePopover" hidden>
+          <div class="product-update-popover-title">產品更新通知</div>
+          <p id="productUpdateText">目前沒有新產品公告。</p>
+        </div>
+      </div>
     </section>
 
     <section class="finder-card">

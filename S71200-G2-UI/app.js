@@ -5,6 +5,7 @@
   const SHEET_NAME = "Migration_DB";
   const CACHE_KEY = "s71200g2_migration_db_v2";
   const CACHE_TIME_KEY = "s71200g2_migration_db_time_v2";
+  const PRODUCT_NOTICE_KEY = "s71200g2_product_update_notice_v1";
 
   // Visitor statistics API.
   // Paste your deployed Google Apps Script Web App /exec URL between the quotes.
@@ -46,7 +47,11 @@
     footerUpdate: $("#footerUpdate"),
     reloadDataBtn: $("#reloadDataBtn"),
     switchSearchBtn: $("#switchSearchBtn"),
-    bottomHelp: $("#help")
+    bottomHelp: $("#help"),
+    productUpdateBell: $("#productUpdateBell"),
+    productUpdateDot: $("#productUpdateDot"),
+    productUpdatePopover: $("#productUpdatePopover"),
+    productUpdateText: $("#productUpdateText")
   };
 
   function clean(v) {
@@ -166,6 +171,110 @@
 
     const d = new Date(raw);
     return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  function getCachedRowsSnapshot() {
+    try {
+      const rows = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
+      return Array.isArray(rows) ? rows : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function getProductNotice() {
+    try {
+      const value = JSON.parse(localStorage.getItem(PRODUCT_NOTICE_KEY) || "null");
+      return value && typeof value === "object" ? value : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function saveProductNotice(notice) {
+    try {
+      localStorage.setItem(PRODUCT_NOTICE_KEY, JSON.stringify(notice));
+    } catch (_) {}
+  }
+
+  function renderProductNotice() {
+    if (!el.productUpdateBell || !el.productUpdateText || !el.productUpdateDot) return;
+
+    const notice = getProductNotice();
+    if (!notice || !clean(notice.text)) {
+      el.productUpdateText.textContent = "目前沒有新產品公告。";
+      el.productUpdateDot.hidden = true;
+      return;
+    }
+
+    el.productUpdateText.textContent = notice.text;
+    el.productUpdateDot.hidden = !notice.unread;
+  }
+
+  function detectProductUpdate(previousRows, currentRows) {
+    const previous = (Array.isArray(previousRows) ? previousRows : []).filter(isEnabled);
+    const current = (Array.isArray(currentRows) ? currentRows : []).filter(isEnabled);
+
+    // 第一次使用沒有舊資料可比較，因此只建立基準，不顯示公告。
+    if (!previous.length || current.length <= previous.length) return;
+
+    // 只檢查「這次比上次多出來的資料區段」，避免既有空白列影響公告。
+    // 由最新一筆往前找第一個有 Old_Description 的新增資料。
+    const addedRows = current.slice(previous.length);
+    let description = "";
+
+    for (let i = addedRows.length - 1; i >= 0; i -= 1) {
+      description = clean(addedRows[i]?.Old_Description);
+      if (description) break;
+    }
+
+    const text = description ? `即將推出 ${description}` : "即將推出新產品";
+
+    saveProductNotice({
+      text,
+      unread: true,
+      previousCount: previous.length,
+      currentCount: current.length,
+      addedCount: current.length - previous.length,
+      createdAt: new Date().toISOString()
+    });
+    renderProductNotice();
+  }
+
+  function initProductUpdateNotice() {
+    if (!el.productUpdateBell || !el.productUpdatePopover) return;
+
+    renderProductNotice();
+
+    el.productUpdateBell.addEventListener("click", () => {
+      const opening = el.productUpdatePopover.hidden;
+      el.productUpdatePopover.hidden = !opening;
+      el.productUpdateBell.setAttribute("aria-expanded", opening ? "true" : "false");
+
+      if (opening) {
+        const notice = getProductNotice();
+        if (notice?.unread) {
+          notice.unread = false;
+          saveProductNotice(notice);
+          renderProductNotice();
+        }
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (el.productUpdatePopover.hidden) return;
+      const wrapper = event.target.closest?.("#productUpdateNotice");
+      if (wrapper) return;
+      el.productUpdatePopover.hidden = true;
+      el.productUpdateBell.setAttribute("aria-expanded", "false");
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || el.productUpdatePopover.hidden) return;
+      el.productUpdatePopover.hidden = true;
+      el.productUpdateBell.setAttribute("aria-expanded", "false");
+      el.productUpdateBell.focus();
+    });
   }
 
   function loadCachedDatabase() {
@@ -331,6 +440,7 @@
   }
 
   async function loadDatabase({ manual = false } = {}) {
+    const previousRows = getCachedRowsSnapshot();
     setStatus("loading", manual ? "重新同步中..." : "正在取得最新資料...");
     el.reloadDataBtn.disabled = true;
 
@@ -356,6 +466,9 @@
       // 有網路時，每次開啟／重新同步都優先讀取最新 Google Sheet。
       database = (await loadSheet()).filter(isEnabled);
       products = uniqueProducts(database);
+
+      // 和上一次成功快取的 Migration_DB 筆數比較。若增加，只從新增資料區段找最新非空 Old_Description。
+      detectProductUpdate(previousRows, database);
 
       const now = new Date();
       localStorage.setItem(CACHE_KEY, JSON.stringify(database));
@@ -1129,6 +1242,7 @@
   }
 
   registerServiceWorker();
+  initProductUpdateNotice();
   switchMode("io");
   loadDatabase();
 
