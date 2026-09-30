@@ -213,33 +213,72 @@
     el.productUpdateBell.classList.toggle("has-new", Boolean(notice.unread));
   }
 
-  function detectProductUpdate(previousRows, currentRows) {
-    const previous = (Array.isArray(previousRows) ? previousRows : []).filter(isEnabled);
-    const current = (Array.isArray(currentRows) ? currentRows : []).filter(isEnabled);
+  function isPreviewRow(row) {
+    return Boolean(clean(row?.Old_Description));
+  }
 
-    // 第一次使用沒有舊資料可比較，因此只建立基準，不顯示公告。
-    if (!previous.length || current.length <= previous.length) return;
+  function getLatestPreviewEntry(rows) {
+    const list = (Array.isArray(rows) ? rows : []).filter(isEnabled);
 
-    // 只檢查「這次比上次多出來的資料區段」，避免既有空白列影響公告。
-    // 由最新一筆往前找第一個有 Old_Description 的新增資料。
-    const addedRows = current.slice(previous.length);
-    let description = "";
-
-    for (let i = addedRows.length - 1; i >= 0; i -= 1) {
-      description = clean(addedRows[i]?.Old_Description);
-      if (description) break;
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+      if (isPreviewRow(list[i])) {
+        return { row: list[i], index: i, rows: list };
+      }
     }
 
-    const text = description ? `即將推出 ${description}` : "即將推出新產品";
+    return null;
+  }
+
+  function clearProductNotice() {
+    try {
+      localStorage.removeItem(PRODUCT_NOTICE_KEY);
+    } catch (_) {}
+  }
+
+  // 公告內容永遠以「目前 Migration_DB 中仍存在的最新預告列」為準。
+  // 預告列定義：只要 Old_Description 有內容，即視為可用於「即將推出」公告。
+  // 若只是刪除資料導致公告退回上一筆，僅更新內容，不重新顯示未讀紅點／搖鈴動畫。
+  function syncProductUpdateNotice(previousRows, currentRows) {
+    const previous = (Array.isArray(previousRows) ? previousRows : []).filter(isEnabled);
+    const current = (Array.isArray(currentRows) ? currentRows : []).filter(isEnabled);
+    const currentPreview = getLatestPreviewEntry(current);
+
+    // 現在資料庫已沒有任何預告列：同步清除舊公告，避免顯示已刪除的產品。
+    if (!currentPreview) {
+      clearProductNotice();
+      renderProductNotice();
+      return;
+    }
+
+    const description = clean(currentPreview.row.Old_Description);
+    const text = `即將推出 ${description}`;
+    const existingNotice = getProductNotice();
+
+    // 只有「資料筆數增加，且目前最新預告列位於新增區段」才視為真正的新公告。
+    // 刪除、修改、或退回較早仍存在的預告列，只同步文字，不重新標記未讀。
+    const isNewAnnouncement = Boolean(
+      previous.length > 0 &&
+      current.length > previous.length &&
+      currentPreview.index >= previous.length
+    );
+
+    const sameText = clean(existingNotice?.text) === text;
+    const unread = isNewAnnouncement
+      ? true
+      : (sameText ? Boolean(existingNotice?.unread) : false);
 
     saveProductNotice({
       text,
-      unread: true,
+      unread,
       previousCount: previous.length,
       currentCount: current.length,
-      addedCount: current.length - previous.length,
-      createdAt: new Date().toISOString()
+      addedCount: Math.max(0, current.length - previous.length),
+      syncedAt: new Date().toISOString(),
+      createdAt: isNewAnnouncement
+        ? new Date().toISOString()
+        : (existingNotice?.createdAt || null)
     });
+
     renderProductNotice();
   }
 
@@ -474,17 +513,18 @@
 
     try {
       // 有網路時，每次開啟／重新同步都優先讀取最新 Google Sheet。
-      // allRows 保留「只有 Old_Description、料號尚未建立」的即將推出資料，供更新公告比對。
-      // database 則只保留已有舊／新料號的資料，避免預告資料進入一般搜尋結果。
+      // allRows 保留所有 Old_Description 有內容的資料，供「即將推出」公告比對。
+      // database 仍只保留已有舊／新料號的資料，避免僅有描述文字的資料進入一般搜尋結果。
       const allRows = (await loadSheet()).filter(isEnabled);
       database = allRows.filter(isSearchableRow);
       products = uniqueProducts(database);
 
-      // 和上一次成功快取的 Migration_DB 筆數比較。若增加，只從新增資料區段找最新非空 Old_Description。
-      detectProductUpdate(previousRows, allRows);
+      // 每次成功同步後，都讓公告內容跟目前 Migration_DB 中「仍存在的最新預告列」一致。
+      // 新增預告會顯示未讀紅點／搖鈴；刪除預告只更新到上一筆，不重新標記未讀。
+      syncProductUpdateNotice(previousRows, allRows);
 
       const now = new Date();
-      // 快取 allRows，下一次才能把尚未有料號的預告資料也納入筆數基準。
+      // 快取 allRows，下一次才能用目前 Migration_DB 的完整資料做公告同步基準。
       localStorage.setItem(CACHE_KEY, JSON.stringify(allRows));
       localStorage.setItem(CACHE_TIME_KEY, now.toISOString());
 
